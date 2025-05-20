@@ -1,0 +1,191 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // Puedes cambiarlo a "mysql", "sqlite", etc.
+  url      = env("DATABASE_URL")
+}
+
+// Modelo de Usuario
+model User {
+  id             String       @id @default(uuid())
+  email          String       @unique
+  password       String
+  name           String
+  studentId      String       @unique
+  career         String
+  semester       String
+  specialization String?
+  bio            String?
+  level          UserLevel    @default(PRINCIPIANTE)
+  avatarUrl      String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  // Relaciones
+  testResults    TestResult[]
+  cv             UserCV?
+  skills         Skill[]
+  progress       Progress?
+
+  @@map("users")
+}
+
+enum UserLevel {
+  PRINCIPIANTE
+  INTERMEDIO
+  AVANZADO
+}
+
+// Modelo de Test
+model Test {
+  id          String        @id @default(uuid())
+  title       String
+  description String
+  duration    String
+  category    String
+  icon        String
+  difficulty  String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  // Relaciones
+  questions   TestQuestion[]
+  results     TestResult[]
+
+  @@map("tests")
+}
+
+// Modelo de Pregunta de Test
+model TestQuestion {
+  id            Int          @id @default(autoincrement())
+  question      String
+  correctAnswer String
+  testId        String
+  test          Test         @relation(fields: [testId], references: [id], onDelete: Cascade)
+  
+  // Relaciones
+  options       TestOption[]
+
+  @@map("test_questions")
+}
+
+// Modelo de Opción de Pregunta
+model TestOption {
+  id         String      @id @default(uuid())
+  text       String
+  questionId Int
+  question   TestQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("test_options")
+}
+
+// Modelo de Resultado de Test
+model TestResult {
+  id       String   @id @default(uuid())
+  score    Int
+  answers  Json     // Almacena Record<number, string>
+  date     DateTime @default(now())
+  category String
+  name     String
+  
+  // Relaciones
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  testId   String
+  test     Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@map("test_results")
+}
+
+// Modelo de Recomendación
+model Recommendation {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  category    String
+  difficulty  String
+  duration    String?
+  icon        String?
+  url         String?
+  platform    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relaciones
+  userProgress UserRecommendationProgress[]
+
+  @@map("recommendations")
+}
+
+// Modelo de Progreso de Usuario en Recomendaciones
+model UserRecommendationProgress {
+  id               String        @id @default(uuid())
+  progress         Int           @default(0)
+  completed        Boolean       @default(false)
+  highlighted      Boolean       @default(false)
+  
+  // Relaciones
+  userId           String
+  recommendationId String
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recommendation   Recommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, recommendationId])
+  @@map("user_recommendation_progress")
+}
+
+// Modelo de CV de Usuario
+model UserCV {
+  id              String    @id @default(uuid())
+  fileName        String
+  fileSize        String
+  fileType        String
+  fileUrl         String
+  uploadDate      DateTime  @default(now())
+  lastAnalysisDate DateTime?
+  
+  // Campos JSON para datos complejos
+  skills          Json?     // Almacena string[]
+  experience      Json?     // Almacena array de objetos
+  education       Json?     // Almacena array de objetos
+  
+  // Relaciones
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_cvs")
+}
+
+// Modelo de Habilidad
+model Skill {
+  id       String @id @default(uuid())
+  name     String
+  score    Int
+  category String
+  
+  // Relaciones
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name, category])
+  @@map("skills")
+}
+
+// Modelo de Progreso de Usuario
+model Progress {
+  id         String   @id @default(uuid())
+  overall    Int      @default(0)
+  categories Json     // Almacena Record<string, number>
+  lastUpdated DateTime @default(now())
+  
+  // Relaciones
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("progress")
+}
